@@ -1,0 +1,49 @@
+#!/bin/bash
+if [ "$#" -eq 0 ]; then
+      echo "Нужно указать имя файла +_+"
+      exit
+fi
+
+echo -n "Битрэйт (1000k): "
+read bitrate
+if [ "$bitrate" == "" ]; then
+  bitrate='1000'
+fi
+
+echo -n "размер (1280x720): "
+read size
+if [ "$size" == "" ]; then
+  size='1280x720'
+fi
+
+echo -n "нужно аудио (y/n, default y): "
+read audiocodec
+if [ "$audiocodec" == "n" ]; then
+  audiocodec_mp4='-an'
+  audiocodec_mov='-an'
+  audiocodec_webm='-an'
+  audiocodec_ogv='-an'
+else
+  audiocodec_mp4='-acodec libvo_aacenc'
+  audiocodec_mov='-acodec libvo_aacenc'
+  audiocodec_webm='-acodec libvorbis'
+  audiocodec_ogv='-acodec libvorbis'
+fi
+
+common='-threads 4 -qmin 0 -qmax 30 -q:v 4 -i_qfactor 0.71 -qcomp 0.6 -qdiff 4 -trellis 0';
+
+options="-y -s $size -b:v ${bitrate}K ${common}"
+echo "${options}"
+
+for file in "$@"
+do
+  
+  DIR="${file}_${bitrate}k_${size}"
+  mkdir -p "$DIR" 2> /dev/null
+  
+  ffmpeg -i "${file}" -c:v libx264   ${options} ${audiocodec_mp4} "${DIR}/${file}.mp4" &
+  ffmpeg -i "${file}" -c:v libtheora ${options} ${audiocodec_ogv} "${DIR}/${file}.ogv" &
+  ffmpeg -i "${file}" -c:v libvpx    ${options} ${audiocodec_webm} "${DIR}/${file}.webm" &
+  ffmpeg -i "${DIR}/${file}.webm" -vcodec libx264 ${options} ${audiocodec_mov}  "${DIR}/${file}.mov" &
+
+done
